@@ -1,0 +1,14 @@
+/* MapLibre's CSS — required for the map canvas, controls, and popups to render.
+   Must come before the Tailwind directives so the @import is the first rule. */
+@import 'maplibre-gl/dist/maplibre-gl.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}

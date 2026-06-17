@@ -1,4 +1,5 @@
 import { useTripStore } from './store';
+import { useRouteSync } from './hooks/useRouteSync';
 import Onboarding from './components/Onboarding';
 import Sidebar from './components/Sidebar';
 import MapView from './components/MapView';
@@ -10,6 +11,9 @@ import MapView from './components/MapView';
 export default function App() {
   const onboarded = useTripStore((s) => s.onboarded);
   const hasStops = useTripStore((s) => s.stops.length > 0);
+
+  // Keep the road route + drive-time figures in sync with the stops.
+  useRouteSync();
 
   // Show onboarding on first run: nothing saved and not yet onboarded.
   const showOnboarding = !onboarded && !hasStops;

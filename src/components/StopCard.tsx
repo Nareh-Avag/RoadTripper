@@ -3,6 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useTripStore } from '../store';
 import { roleForIndex, ROLE_COLOR, type Stop } from '../types';
+import { formatDistance, formatDuration } from '../lib/format';
 
 /**
  * One stop in the sidebar list. Draggable (dnd-kit) for reordering. Holds inline
@@ -23,6 +24,10 @@ export default function StopCard({
   const toggleVisited = useTripStore((s) => s.toggleVisited);
   const selectedStopId = useTripStore((s) => s.selectedStopId);
   const selectStop = useTripStore((s) => s.selectStop);
+  const routeInfo = useTripStore((s) => s.routeInfo);
+
+  // Drive from the previous stop to this one (legs[i-1] for stop at index i).
+  const incomingLeg = index > 0 ? routeInfo?.legs[index - 1] : undefined;
 
   const role = roleForIndex(index, total);
   const isOpen = selectedStopId === stop.id;
@@ -43,6 +48,14 @@ export default function StopCard({
 
   return (
     <li ref={setNodeRef} style={style} className="border p-2">
+      {/* Drive figures for the leg arriving at this stop. */}
+      {incomingLeg && (
+        <div className="mb-1 text-xs text-gray-600">
+          ↳ {formatDistance(incomingLeg.distance)} ·{' '}
+          {formatDuration(incomingLeg.duration)} from previous
+        </div>
+      )}
+
       <div className="flex items-center gap-2">
         {/* Drag handle */}
         <button

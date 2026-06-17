@@ -34,12 +34,18 @@ const MAP_STYLE: StyleSpecification = {
 
 export default function MapView() {
   const stops = useTripStore((s) => s.stops);
+  const routeInfo = useTripStore((s) => s.routeInfo);
   const selectStop = useTripStore((s) => s.selectStop);
   const mapRef = useRef<MapRef>(null);
   const [popupId, setPopupId] = useState<string | null>(null);
 
-  // The dashed route line connecting stops in order (built with Turf).
-  const route = useMemo(() => routeLine(stops), [stops]);
+  // Prefer the road-following geometry from the routing service. While it's
+  // loading (or if the service is unreachable), fall back to straight Turf lines
+  // so the trip is always connected on the map.
+  const route = useMemo(
+    () => routeInfo?.geometry ?? routeLine(stops),
+    [routeInfo, stops],
+  );
 
   // Fit the map to all stops whenever the set of coordinates changes.
   const boundsKey = stops.map((s) => s.coordinates.join(',')).join('|');

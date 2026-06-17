@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Stop, TripFile } from './types';
+import type { RouteInfo } from './lib/routing';
 
 /**
  * ─────────────────────────────────────────────────────────────────────────────
@@ -40,6 +41,12 @@ interface TripState {
   /** Which stop's detail panel is open in the sidebar, if any. */
   selectedStopId: string | null;
 
+  // ── Routing (transient — derived from stops, NOT persisted) ─────────────────
+  /** Road geometry + distance/duration from the routing service, or null. */
+  routeInfo: RouteInfo | null;
+  /** Status of the latest routing request, for showing spinners / fallbacks. */
+  routeStatus: 'idle' | 'loading' | 'error';
+
   // ── Actions ────────────────────────────────────────────────────────────────
 
   /** Append a stop to the end of the trip. Returns the new stop's id. */
@@ -54,6 +61,11 @@ interface TripState {
   toggleVisited: (id: string) => void;
   /** Open/close a stop's detail panel. Pass null to close. */
   selectStop: (id: string | null) => void;
+
+  /** Set the latest routing result (called by the routing sync hook). */
+  setRoute: (info: RouteInfo | null, status: 'idle' | 'error') => void;
+  /** Mark a routing request as in-flight. */
+  setRouteLoading: () => void;
 
   /** Mark onboarding complete and drop the user into the map. */
   completeOnboarding: () => void;
@@ -72,6 +84,8 @@ export const useTripStore = create<TripState>()(
       stops: [],
       onboarded: false,
       selectedStopId: null,
+      routeInfo: null,
+      routeStatus: 'idle',
 
       addStop: (input) => {
         const stop: Stop = {
@@ -109,6 +123,10 @@ export const useTripStore = create<TripState>()(
         })),
 
       selectStop: (id) => set({ selectedStopId: id }),
+
+      setRoute: (info, status) =>
+        set({ routeInfo: info, routeStatus: status }),
+      setRouteLoading: () => set({ routeStatus: 'loading' }),
 
       completeOnboarding: () => set({ onboarded: true }),
 

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -14,6 +14,8 @@ import {
 } from '@dnd-kit/sortable';
 import { useTripStore } from '../store';
 import type { TripFile } from '../types';
+import { fetchOptimizedOrder } from '../lib/routing';
+import { formatDistance, formatDuration } from '../lib/format';
 import StopCard from './StopCard';
 import PlaceSearch from './PlaceSearch';
 
@@ -28,8 +30,25 @@ export default function Sidebar() {
   const startOver = useTripStore((s) => s.startOver);
   const importTrip = useTripStore((s) => s.importTrip);
   const exportTrip = useTripStore((s) => s.exportTrip);
+  const routeInfo = useTripStore((s) => s.routeInfo);
+  const routeStatus = useTripStore((s) => s.routeStatus);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [optimizing, setOptimizing] = useState(false);
+
+  // Reorder intermediate stops to minimize total drive time (keeps start/end).
+  async function onOptimize() {
+    setOptimizing(true);
+    try {
+      const reordered = await fetchOptimizedOrder(stops);
+      if (reordered) setStops(reordered);
+      else alert('Could not optimize the route. Keeping current order.');
+    } catch {
+      alert('Optimize failed (routing service unavailable). Keeping current order.');
+    } finally {
+      setOptimizing(false);
+    }
+  }
 
   // dnd-kit: a small pointer movement threshold so clicks on buttons still work.
   const sensors = useSensors(
@@ -105,6 +124,37 @@ export default function Sidebar() {
             Start over
           </button>
         </div>
+
+        {/* Trip totals from the routing service. */}
+        <div className="mt-2 text-sm">
+          {routeStatus === 'loading' && <span>Calculating route…</span>}
+          {routeStatus === 'error' && (
+            <span>Route unavailable (showing straight lines).</span>
+          )}
+          {routeStatus === 'idle' && routeInfo && (
+            <span>
+              Total: {formatDistance(routeInfo.totalDistance)} ·{' '}
+              {formatDuration(routeInfo.totalDuration)}
+            </span>
+          )}
+          {routeStatus === 'idle' && !routeInfo && stops.length < 2 && (
+            <span>Add at least two stops to see drive time.</span>
+          )}
+        </div>
+
+        {/* Optional: minimize total drive time by reordering middle stops. */}
+        {stops.length >= 4 && (
+          <div className="mt-2">
+            <button
+              type="button"
+              className="border px-2 py-1 text-sm"
+              disabled={optimizing}
+              onClick={onOptimize}
+            >
+              {optimizing ? 'Optimizing…' : 'Optimize order'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Add a stop anywhere */}

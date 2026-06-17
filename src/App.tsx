@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTripStore } from './store';
 import { useRouteSync } from './hooks/useRouteSync';
 import Onboarding from './components/Onboarding';
@@ -12,6 +13,9 @@ export default function App() {
   const onboarded = useTripStore((s) => s.onboarded);
   const hasStops = useTripStore((s) => s.stops.length > 0);
 
+  // Whether the stops sidebar is shown. Hiding it gives a full-width map view.
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   // Keep the road route + drive-time figures in sync with the stops.
   useRouteSync();
 
@@ -24,9 +28,18 @@ export default function App() {
 
   return (
     <div className="flex h-full w-full">
-      <Sidebar />
+      {sidebarOpen && <Sidebar onHide={() => setSidebarOpen(false)} />}
       <main className="relative flex-1">
         <MapView />
+        {!sidebarOpen && (
+          <button
+            type="button"
+            className="absolute left-2 top-2 z-10 border bg-white px-2 py-1 text-sm shadow"
+            onClick={() => setSidebarOpen(true)}
+          >
+            Show stops
+          </button>
+        )}
       </main>
     </div>
   );

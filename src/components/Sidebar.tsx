@@ -24,7 +24,7 @@ import TripSummaryCard from './TripSummaryCard';
  * Left sidebar: the ordered, drag-reorderable list of stops plus trip-wide
  * controls (add a stop, start over, download a shareable summary image).
  */
-export default function Sidebar() {
+export default function Sidebar({ onHide }: { onHide: () => void }) {
   const stops = useTripStore((s) => s.stops);
   const setStops = useTripStore((s) => s.setStops);
   const addStop = useTripStore((s) => s.addStop);
@@ -81,7 +81,17 @@ export default function Sidebar() {
   return (
     <aside className="flex h-full w-80 flex-col border-r">
       <div className="border-b p-2">
-        <h2 className="font-bold">Your trip</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-bold">Your trip</h2>
+          <button
+            type="button"
+            className="border px-2 py-1 text-sm"
+            title="Hide sidebar for full map view"
+            onClick={onHide}
+          >
+            Hide
+          </button>
+        </div>
         <div className="mt-2 flex flex-wrap gap-2">
           <button
             type="button"

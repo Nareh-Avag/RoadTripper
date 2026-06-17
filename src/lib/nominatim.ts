@@ -15,11 +15,27 @@ const ONE_SECOND = 1000;
 let lastRequestAt = 0;
 let chain: Promise<unknown> = Promise.resolve();
 
-/** Run `fn` such that successive calls are spaced at least 1s apart. */
-function rateLimited<T>(fn: () => Promise<T>): Promise<T> {
+/**
+ * Run `fn` such that successive calls are spaced at least 1s apart.
+ *
+ * Crucially, a request whose `signal` has already aborted is dropped *without*
+ * consuming its 1-second slot. Otherwise slow typing (common on mobile) stacks
+ * one queued request per keystroke, each waiting its turn even though the user
+ * has already moved on — making the dropdown lag many seconds behind.
+ */
+function rateLimited<T>(
+  fn: () => Promise<T>,
+  signal: AbortSignal | undefined,
+  fallback: T,
+): Promise<T> {
   const run = async (): Promise<T> => {
+    // Already stale before we even reach the front of the queue — skip it and
+    // don't hold up the requests behind it.
+    if (signal?.aborted) return fallback;
     const wait = lastRequestAt + ONE_SECOND - Date.now();
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    // It may have aborted while we waited; bail before spending a real slot.
+    if (signal?.aborted) return fallback;
     lastRequestAt = Date.now();
     return fn();
   };
@@ -42,7 +58,6 @@ export async function geocode(
   if (!trimmed) return [];
 
   return rateLimited(async () => {
-    if (signal?.aborted) return [];
     const url =
       'https://nominatim.openstreetmap.org/search?format=json&limit=' +
       limit +
@@ -65,5 +80,5 @@ export async function geocode(
       name: d.display_name,
       coordinates: [parseFloat(d.lon), parseFloat(d.lat)] as [number, number],
     }));
-  });
+  }, signal, [] as GeocodeResult[]);
 }

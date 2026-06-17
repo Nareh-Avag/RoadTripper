@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Stop, TripFile } from './types';
+import type { Stop } from './types';
 import type { RouteInfo } from './lib/routing';
 
 /**
@@ -71,16 +71,11 @@ interface TripState {
   completeOnboarding: () => void;
   /** Wipe the trip and re-trigger onboarding ("Start over"). */
   startOver: () => void;
-
-  /** Replace the whole trip (used by Import JSON). */
-  importTrip: (file: TripFile) => void;
-  /** Serialize the current trip for Export JSON. */
-  exportTrip: () => TripFile;
 }
 
 export const useTripStore = create<TripState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       stops: [],
       onboarded: false,
       selectedStopId: null,
@@ -132,15 +127,6 @@ export const useTripStore = create<TripState>()(
 
       startOver: () =>
         set({ stops: [], onboarded: false, selectedStopId: null }),
-
-      importTrip: (file) =>
-        set({
-          stops: file.stops,
-          onboarded: true,
-          selectedStopId: null,
-        }),
-
-      exportTrip: () => ({ version: 1, stops: get().stops }),
     }),
     {
       // Single localStorage key — this is each user's whole trip.

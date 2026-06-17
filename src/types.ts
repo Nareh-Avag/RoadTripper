@@ -30,9 +30,3 @@ export const ROLE_COLOR: Record<StopRole, string> = {
   waypoint: 'blue',
   end: 'red',
 };
-
-/** Shape of an exported / imported trip file. */
-export interface TripFile {
-  version: 1;
-  stops: Stop[];
-}

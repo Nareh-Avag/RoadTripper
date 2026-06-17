@@ -13,28 +13,42 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useTripStore } from '../store';
-import type { TripFile } from '../types';
 import { fetchOptimizedOrder } from '../lib/routing';
 import { formatDistance, formatDuration } from '../lib/format';
+import { downloadNodeAsPng } from '../lib/downloadImage';
 import StopCard from './StopCard';
 import PlaceSearch from './PlaceSearch';
+import TripSummaryCard from './TripSummaryCard';
 
 /**
  * Left sidebar: the ordered, drag-reorderable list of stops plus trip-wide
- * controls (add a stop, start over, export/import JSON).
+ * controls (add a stop, start over, download a shareable summary image).
  */
 export default function Sidebar() {
   const stops = useTripStore((s) => s.stops);
   const setStops = useTripStore((s) => s.setStops);
   const addStop = useTripStore((s) => s.addStop);
   const startOver = useTripStore((s) => s.startOver);
-  const importTrip = useTripStore((s) => s.importTrip);
-  const exportTrip = useTripStore((s) => s.exportTrip);
   const routeInfo = useTripStore((s) => s.routeInfo);
   const routeStatus = useTripStore((s) => s.routeStatus);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Off-screen summary card we rasterize to PNG (see render at the bottom).
+  const cardRef = useRef<HTMLDivElement>(null);
   const [optimizing, setOptimizing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  // Render the off-screen summary card to a PNG and download it.
+  async function onDownloadImage() {
+    if (!cardRef.current) return;
+    setDownloading(true);
+    try {
+      await downloadNodeAsPng(cardRef.current, 'roadtrip.png');
+    } catch {
+      alert('Could not generate the image. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   // Reorder intermediate stops to minimize total drive time (keeps start/end).
   async function onOptimize() {
@@ -64,56 +78,19 @@ export default function Sidebar() {
     setStops(arrayMove(stops, oldIndex, newIndex));
   }
 
-  function onExport() {
-    const data = JSON.stringify(exportTrip(), null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'roadtrip.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function onImportFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(String(reader.result)) as TripFile;
-        if (!Array.isArray(parsed.stops)) throw new Error('Invalid file');
-        importTrip(parsed);
-      } catch {
-        alert('Could not import: invalid trip file.');
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = ''; // allow re-importing the same file
-  }
-
   return (
     <aside className="flex h-full w-80 flex-col border-r">
       <div className="border-b p-2">
         <h2 className="font-bold">Your trip</h2>
         <div className="mt-2 flex flex-wrap gap-2">
-          <button type="button" className="border px-2 py-1 text-sm" onClick={onExport}>
-            Export JSON
-          </button>
           <button
             type="button"
             className="border px-2 py-1 text-sm"
-            onClick={() => fileInputRef.current?.click()}
+            disabled={downloading || stops.length === 0}
+            onClick={onDownloadImage}
           >
-            Import JSON
+            {downloading ? 'Generating…' : 'Download image'}
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/json"
-            className="hidden"
-            onChange={onImportFile}
-          />
           <button
             type="button"
             className="border px-2 py-1 text-sm"
@@ -193,6 +170,21 @@ export default function Sidebar() {
             </SortableContext>
           </DndContext>
         )}
+      </div>
+
+      {/* Off-screen summary card, kept mounted so it can be rasterized to PNG
+          on demand. Positioned far off-screen (not display:none) so it still
+          has real layout for html-to-image to capture. */}
+      <div
+        aria-hidden
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: -10000,
+          pointerEvents: 'none',
+        }}
+      >
+        <TripSummaryCard ref={cardRef} stops={stops} routeInfo={routeInfo} />
       </div>
     </aside>
   );
